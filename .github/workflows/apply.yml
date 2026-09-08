@@ -1,0 +1,30 @@
+name: Terraform apply
+
+on:
+  workflow_run:
+    workflows: ["Terraform plan"]
+    types:
+      - completed
+
+env:  
+  AWS_REGION: ap-south-1
+
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest  
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3 
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0  
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        
