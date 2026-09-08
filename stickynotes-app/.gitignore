@@ -1,0 +1,24 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Terraform variables with sensitive values
+*.tfvars
+*.tfvars.json
+
+# Terraform lock file - KEEP this tracked
+# Do NOT ignore .terraform.lock.hcl
+
+# Terraform working directory
+.terraform/
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+
+# Crash logs
+crash.log
+crash.*.log
