@@ -262,6 +262,10 @@ module "sns" {
       protocol = "email"
       endpoint = var.alert_email
     }
+    phone = {
+      protocol = "sms"
+      endpoint = var.alert_phone
+    }
   }
 
   tags = {
