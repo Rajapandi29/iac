@@ -23,8 +23,28 @@ jobs:
           terraform_version: 1.6.0  
 
       - name: Terraform Init
+        working-directory: "eticket-app"
         run: terraform init
 
+      - name: Terraform Init
+        working-directory: "stickynotes-app"
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: "eticket-app"
+        run: terraform plan
+
+      - name: Terraform Plan
+        working-directory: "stickynotes-app"
+        run: terraform plan     
+
+
       - name: Terraform Apply
+        working-directory: "eticket-app"     
+        run: terraform apply -auto-approve
+
+
+      - name: Terraform Apply
+        working-directory: "stickynotes-app"
         run: terraform apply -auto-approve
         
