@@ -147,6 +147,8 @@ module "alb" {
             {
               path_pattern = {
                 values = [
+                  "/eticket",
+                  "/eticket/*",
                   "/eticket-app",
                   "/eticket-app/*"
                 ]
