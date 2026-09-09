@@ -205,12 +205,12 @@ module "ecs" {
       }
 
       load_balancer = {
-        app = {
-          target_group_arn = module.alb.target_group_arns["eticket"]
-          container_name   = "app"
-          container_port   = 3000
-        }
-      }
+  app = {
+    target_group_arn = module.alb.target_groups["eticket"].arn
+    container_name   = "app"
+    container_port   = 3000
+  }
+}
 
       task_definition = {
         cpu    = 256

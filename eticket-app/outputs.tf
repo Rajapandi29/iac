@@ -22,6 +22,10 @@ output "sns_topic_arn" {
   value = module.sns.topic_arn
 }
 
-output "cloudwatch_alarm_name" {
-  value = module.cloudwatch.alarm_name
+output "cloudwatch_metric_alarm_arns" {
+  value = module.cloudwatch.cloudwatch_metric_alarm_arns
+}
+
+output "cloudwatch_metric_alarm_ids" {
+  value = module.cloudwatch.cloudwatch_metric_alarm_ids
 }
