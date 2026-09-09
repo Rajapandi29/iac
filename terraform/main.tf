@@ -155,6 +155,19 @@ module "alb" {
               }
             }
           ]
+
+          transform = {
+            url_rewrite = {
+              type = "url-rewrite"
+
+              url_rewrite_config = {
+                rewrite = {
+                  regex   = "^/(eticket|eticket-app)(?:/(.*))?$"
+                  replace = "/$2"
+                }
+              }
+            }
+          }
         }
       }
     }
