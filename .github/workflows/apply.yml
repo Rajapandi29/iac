@@ -23,7 +23,7 @@ jobs:
           terraform_version: 1.14.0
 
       - name: Terraform Init
-        working-directory: "eticket-app"
+        working-directory: "terraform"
         run: terraform init
 
       - name: Terraform Init
@@ -31,7 +31,7 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: "eticket-app"
+        working-directory: "terraform"
         run: terraform plan
 
       - name: Terraform Plan
@@ -40,11 +40,11 @@ jobs:
 
 
       - name: Terraform Apply
-        working-directory: "eticket-app"     
+        working-directory: "terraform "     
         run: terraform apply -auto-approve
 
 
       - name: Terraform Apply
-        working-directory: "stickynotes-app"
+        working-directory: "terraform"
         run: terraform apply -auto-approve
         
