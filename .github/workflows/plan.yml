@@ -9,7 +9,7 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
-  plan:
+  plan1:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,14 +25,27 @@ jobs:
         working-directory: "eticket-app"
         run: terraform init
 
-      - name : Terraform init
-        working-directory: "stickynotes-app"
-        run: terraform init
-
       - name: Terraform Plan
         working-directory: "eticket-app"
         run: terraform plan
 
+  plan2:
+    runs-on: ubuntu-latest  
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        working-directory: "stickynotes-app"
+        run: terraform init
+
       - name: Terraform Plan
         working-directory: "stickynotes-app"
-        run: terraform plan
+        run: terraform plan 
+
+      
