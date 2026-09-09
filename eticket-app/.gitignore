@@ -5,9 +5,6 @@
 crash.log
 crash.*.log
 
-# Terraform variables with sensitive values
-*.tfvars
-*.tfvars.json
 
 # Terraform lock file - KEEP this tracked
 # Do NOT ignore .terraform.lock.hcl
