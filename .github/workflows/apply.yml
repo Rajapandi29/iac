@@ -43,7 +43,8 @@ jobs:
         run: terraform apply -auto-approve
   mini_apply:
     runs-on: ubuntu-latest
-    env: us-east-1
+    env: 
+      AWS_REGION: us-east-1
 
     steps:
 
