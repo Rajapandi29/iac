@@ -49,3 +49,5 @@ neon_database_password = "123456789"
 
 
 alert_email = "jagansunil100@gmail.com"
+
+alert_phone = "+918056213780"
