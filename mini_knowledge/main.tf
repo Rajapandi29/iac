@@ -1,4 +1,3 @@
-```hcl
 module "vpc" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//vpc?ref=v1.0.0"
 
@@ -604,4 +603,4 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
     module.sns.topic_arn
   ]
 }
-```
+
