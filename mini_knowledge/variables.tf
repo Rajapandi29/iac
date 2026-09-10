@@ -102,3 +102,7 @@ variable "alert_email" {
   type    = string
   default = ""
 }
+variable "alert_phone" {
+    type = string
+    default = ""
+}
