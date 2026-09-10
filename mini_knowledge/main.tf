@@ -1,3 +1,8 @@
+```hcl
+# ============================================================
+# VPC
+# ============================================================
+
 module "vpc" {
 
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//vpc?ref=v1.0.0"
@@ -21,6 +26,9 @@ module "vpc" {
 }
 
 
+# ============================================================
+# ALB
+# ============================================================
 
 module "alb" {
 
@@ -32,7 +40,6 @@ module "alb" {
   vpc_id  = module.vpc.vpc_id
   subnets = module.vpc.public_subnets
 
-
   security_group_ingress_rules = {
 
     http = {
@@ -42,7 +49,6 @@ module "alb" {
       description = "HTTP from Internet"
       cidr_ipv4   = "0.0.0.0/0"
     }
-
   }
 
   security_group_egress_rules = {
@@ -51,9 +57,7 @@ module "alb" {
       ip_protocol = "-1"
       cidr_ipv4   = "0.0.0.0/0"
     }
-
   }
-
 
   target_groups = {
 
@@ -107,12 +111,12 @@ module "alb" {
       port     = 80
       protocol = "HTTP"
 
-      # Default = Streamlit
+      # Default traffic -> Streamlit
       forward = {
         target_group_key = "streamlit"
       }
 
-      # /backend/* = FastAPI
+      # /backend and /backend/* -> FastAPI
       rules = {
 
         backend = {
@@ -150,6 +154,10 @@ module "alb" {
 }
 
 
+# ============================================================
+# ECR - STREAMLIT
+# ============================================================
+
 module "ecr_streamlit" {
 
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
@@ -167,10 +175,10 @@ module "ecr_streamlit" {
         description = "Keep last 10 tagged images"
 
         selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["v"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 10
+          tagStatus = "tagged"
+
+          countType  = "imageCountMoreThan"
+          countNumber = 10
         }
 
         action = {
@@ -187,6 +195,10 @@ module "ecr_streamlit" {
   }
 }
 
+
+# ============================================================
+# ECR - FASTAPI
+# ============================================================
 
 module "ecr_fastapi" {
 
@@ -205,10 +217,10 @@ module "ecr_fastapi" {
         description = "Keep last 10 tagged images"
 
         selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["v"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 10
+          tagStatus = "tagged"
+
+          countType  = "imageCountMoreThan"
+          countNumber = 10
         }
 
         action = {
@@ -226,6 +238,44 @@ module "ecr_fastapi" {
 }
 
 
+# ============================================================
+# CLOUDWATCH LOG GROUPS
+# Native AWS resources
+# ============================================================
+
+resource "aws_cloudwatch_log_group" "streamlit" {
+
+  name              = "/ecs/${var.app_name}/streamlit"
+  retention_in_days = 7
+
+  tags = {
+    Project     = var.app_name
+    Environment = var.environment
+    Service     = "streamlit"
+    ManagedBy   = "Terraform"
+  }
+}
+
+
+resource "aws_cloudwatch_log_group" "fastapi" {
+
+  name              = "/ecs/${var.app_name}/fastapi"
+  retention_in_days = 7
+
+  tags = {
+    Project     = var.app_name
+    Environment = var.environment
+    Service     = "fastapi"
+    ManagedBy   = "Terraform"
+  }
+}
+
+
+# ============================================================
+# ECS
+# One cluster
+# Two services
+# ============================================================
 
 module "ecs" {
 
@@ -256,7 +306,18 @@ module "ecs" {
   task_exec_iam_role_name = "${var.app_name}-execution-role"
 
 
+  # Make sure log groups exist before ECS services/tasks use them
+  depends_on = [
+    aws_cloudwatch_log_group.streamlit,
+    aws_cloudwatch_log_group.fastapi
+  ]
+
+
   services = {
+
+    # ========================================================
+    # STREAMLIT SERVICE
+    # ========================================================
 
     streamlit = {
 
@@ -280,119 +341,12 @@ module "ecs" {
       security_group_ingress_rules = {
 
         streamlit = {
-          description                  = "ALB to Streamlit"
-          from_port                    = var.streamlit_port
-          to_port                      = var.streamlit_port
-          ip_protocol                  = "tcp"
-          referenced_security_group_id = module.alb.security_group_id
-        }
-      }
 
-      security_group_egress_rules = {
+          description = "ALB to Streamlit"
 
-        all = {
-          ip_protocol = "-1"
-          cidr_ipv4   = "0.0.0.0/0"
-        }
-      }
+          from_port = var.streamlit_port
 
-      deployment_circuit_breaker = {
-        enable   = true
-        rollback = true
-      }
-
-
-      network_mode = "awsvpc"
-
-      requires_compatibilities = [
-        "FARGATE"
-      ]
-
-      container_definitions = {
-
-        streamlit = {
-
-          name      = "streamlit"
-          image     = "${module.ecr_streamlit.repository_url}:${var.streamlit_image_tag}"
-          essential = true
-
-          cpu    = 256
-          memory = 512
-
-          portMappings = [
-            {
-              name          = "streamlit"
-              containerPort = var.streamlit_port
-              hostPort      = var.streamlit_port
-              protocol      = "tcp"
-            }
-          ]
-
-          command = [
-            "streamlit",
-            "run",
-            "frontend/streamlit_app.py",
-            "--server.address=0.0.0.0",
-            "--server.port=8501"
-          ]
-
-          environment = [
-            {
-              name  = "BACKEND_URL"
-              value = "/backend"
-            }
-          ]
-
-          enable_cloudwatch_logging = true
-
-          cloudwatch_log_group_name = "/ecs/${var.app_name}/streamlit"
-
-          cloudwatch_log_group_retention_in_days = 7
-        }
-      }
-
-      load_balancer = {
-
-        streamlit = {
-
-          target_group_arn = module.alb.target_groups["streamlit"].arn
-
-          container_name = "streamlit"
-
-          container_port = var.streamlit_port
-        }
-      }
-    }
-
-
-    fastapi = {
-
-      name = "${var.app_name}-fastapi"
-
-      cpu    = 512
-      memory = 1024
-
-      desired_count = 1
-
-      launch_type = "FARGATE"
-
-      assign_public_ip = false
-
-      subnet_ids = module.vpc.private_subnets
-
-      vpc_id = module.vpc.vpc_id
-
-      security_group_name = "${var.app_name}-fastapi-sg"
-
-      security_group_ingress_rules = {
-
-        fastapi = {
-
-          description = "ALB to FastAPI"
-
-          from_port = var.fastapi_port
-
-          to_port = var.fastapi_port
+          to_port = var.streamlit_port
 
           ip_protocol = "tcp"
 
@@ -416,12 +370,152 @@ module "ecs" {
         rollback = true
       }
 
+      network_mode = "awsvpc"
+
+      requires_compatibilities = [
+        "FARGATE"
+      ]
+
+
+      container_definitions = {
+
+        streamlit = {
+
+          name = "streamlit"
+
+          image = "${module.ecr_streamlit.repository_url}:${var.streamlit_image_tag}"
+
+          essential = true
+
+          cpu    = 256
+          memory = 512
+
+
+          portMappings = [
+
+            {
+              name = "streamlit"
+
+              containerPort = var.streamlit_port
+
+              hostPort = var.streamlit_port
+
+              protocol = "tcp"
+            }
+          ]
+
+
+          command = [
+
+            "streamlit",
+            "run",
+            "frontend/streamlit_app.py",
+            "--server.address=0.0.0.0",
+            "--server.port=8501"
+          ]
+
+
+          environment = [
+
+            {
+              name = "BACKEND_URL"
+
+              value = "/backend"
+            }
+          ]
+
+
+          enable_cloudwatch_logging = true
+
+          # Log group is created by native Terraform resource above
+          create_cloudwatch_log_group = false
+
+          cloudwatch_log_group_name = "/ecs/${var.app_name}/streamlit"
+
+          cloudwatch_log_group_retention_in_days = 7
+        }
+      }
+
+
+      load_balancer = {
+
+        streamlit = {
+
+          target_group_arn = module.alb.target_groups["streamlit"].arn
+
+          container_name = "streamlit"
+
+          container_port = var.streamlit_port
+        }
+      }
+    }
+
+
+    # ========================================================
+    # FASTAPI SERVICE
+    # ========================================================
+
+    fastapi = {
+
+      name = "${var.app_name}-fastapi"
+
+      cpu    = 512
+      memory = 1024
+
+      desired_count = 1
+
+      launch_type = "FARGATE"
+
+      assign_public_ip = false
+
+      subnet_ids = module.vpc.private_subnets
+
+      vpc_id = module.vpc.vpc_id
+
+      security_group_name = "${var.app_name}-fastapi-sg"
+
+
+      security_group_ingress_rules = {
+
+        fastapi = {
+
+          description = "ALB to FastAPI"
+
+          from_port = var.fastapi_port
+
+          to_port = var.fastapi_port
+
+          ip_protocol = "tcp"
+
+          referenced_security_group_id = module.alb.security_group_id
+        }
+      }
+
+
+      security_group_egress_rules = {
+
+        all = {
+
+          ip_protocol = "-1"
+
+          cidr_ipv4 = "0.0.0.0/0"
+        }
+      }
+
+
+      deployment_circuit_breaker = {
+
+        enable   = true
+        rollback = true
+      }
+
 
       network_mode = "awsvpc"
 
       requires_compatibilities = [
         "FARGATE"
       ]
+
 
       container_definitions = {
 
@@ -437,6 +531,7 @@ module "ecs" {
 
           memory = 1024
 
+
           portMappings = [
 
             {
@@ -450,7 +545,9 @@ module "ecs" {
             }
           ]
 
+
           command = [
+
             "uvicorn",
             "main:app",
             "--host",
@@ -458,6 +555,7 @@ module "ecs" {
             "--port",
             "8000"
           ]
+
 
           environment = [
 
@@ -492,6 +590,7 @@ module "ecs" {
             }
           ]
 
+
           healthCheck = {
 
             command = [
@@ -508,7 +607,11 @@ module "ecs" {
             startPeriod = 30
           }
 
+
           enable_cloudwatch_logging = true
+
+          # Log group is created by native Terraform resource above
+          create_cloudwatch_log_group = false
 
           cloudwatch_log_group_name = "/ecs/${var.app_name}/fastapi"
 
@@ -531,6 +634,7 @@ module "ecs" {
     }
   }
 
+
   tags = {
     Project     = var.app_name
     Environment = var.environment
@@ -538,148 +642,209 @@ module "ecs" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "streamlit" {
-  name              = "/ecs/${var.app_name}/streamlit"
-  retention_in_days = 7
 
-  tags = {
-    Project     = var.app_name
-    Environment = var.environment
-    Service     = "streamlit"
-    ManagedBy   = "Terraform"
+# ============================================================
+# SNS
+# GitHub Terraform module
+# ============================================================
+
+module "sns" {
+
+  source = "git::https://github.com/Rajapandi29/terraform-modules.git//sns?ref=v1.0.0"
+
+  name = "${var.app_name}-alerts"
+
+  subscriptions = {
+
+    email = {
+
+      protocol = "email"
+
+      endpoint = var.alert_email
+    }
+
+    sms = {
+
+      protocol = "sms"
+
+      endpoint = var.alert_phone
+    }
   }
 }
 
 
-resource "aws_cloudwatch_log_group" "fastapi" {
-  name              = "/ecs/${var.app_name}/fastapi"
-  retention_in_days = 7
-
-  tags = {
-    Project     = var.app_name
-    Environment = var.environment
-    Service      = "fastapi"
-    ManagedBy   = "Terraform"
-  }
-}
-
+# ============================================================
+# CLOUDWATCH ALARM
+# STREAMLIT UNHEALTHY
+# ============================================================
 
 resource "aws_cloudwatch_metric_alarm" "streamlit_unhealthy" {
-  alarm_name          = "${var.app_name}-streamlit-unhealthy"
-  alarm_description   = "Streamlit target is unhealthy"
+
+  alarm_name = "${var.app_name}-streamlit-unhealthy"
+
+  alarm_description = "Streamlit target is unhealthy"
+
   comparison_operator = "GreaterThanThreshold"
 
   evaluation_periods = 2
-  period             = 60
 
-  namespace   = "AWS/ApplicationELB"
+  period = 60
+
+  namespace = "AWS/ApplicationELB"
+
   metric_name = "UnHealthyHostCount"
-  statistic   = "Maximum"
+
+  statistic = "Maximum"
 
   threshold = 0
 
+
   dimensions = {
-    TargetGroup  = module.alb.target_groups["streamlit"].arn_suffix
+
+    TargetGroup = module.alb.target_groups["streamlit"].arn_suffix
+
     LoadBalancer = module.alb.arn_suffix
   }
 
+
   alarm_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 
   ok_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 }
 
 
+# ============================================================
+# CLOUDWATCH ALARM
+# FASTAPI UNHEALTHY
+# ============================================================
 
 resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
-  alarm_name          = "${var.app_name}-fastapi-unhealthy"
-  alarm_description   = "FastAPI target is unhealthy"
+
+  alarm_name = "${var.app_name}-fastapi-unhealthy"
+
+  alarm_description = "FastAPI target is unhealthy"
+
   comparison_operator = "GreaterThanThreshold"
 
   evaluation_periods = 2
-  period             = 60
 
-  namespace   = "AWS/ApplicationELB"
+  period = 60
+
+  namespace = "AWS/ApplicationELB"
+
   metric_name = "UnHealthyHostCount"
-  statistic   = "Maximum"
+
+  statistic = "Maximum"
 
   threshold = 0
 
+
   dimensions = {
-    TargetGroup  = module.alb.target_groups["fastapi"].arn_suffix
+
+    TargetGroup = module.alb.target_groups["fastapi"].arn_suffix
+
     LoadBalancer = module.alb.arn_suffix
   }
 
+
   alarm_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 
   ok_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 }
 
 
+# ============================================================
+# CLOUDWATCH ALARM
+# STREAMLIT NO RUNNING TASKS
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "streamlit_running_tasks" {
-  alarm_name        = "${var.app_name}-streamlit-no-tasks"
+
+  alarm_name = "${var.app_name}-streamlit-no-tasks"
+
   alarm_description = "Streamlit ECS service has no running tasks"
 
   comparison_operator = "LessThanThreshold"
 
   evaluation_periods = 2
-  period             = 60
 
-  namespace   = "ECS/ContainerInsights"
+  period = 60
+
+  namespace = "ECS/ContainerInsights"
+
   metric_name = "RunningTaskCount"
 
   statistic = "Minimum"
 
   threshold = 1
 
+
   dimensions = {
+
     ClusterName = module.ecs.cluster_name
+
     ServiceName = module.ecs.services["streamlit"].name
   }
 
+
   alarm_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 
   ok_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 }
 
 
+# ============================================================
+# CLOUDWATCH ALARM
+# FASTAPI NO RUNNING TASKS
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
-  alarm_name        = "${var.app_name}-fastapi-no-tasks"
+
+  alarm_name = "${var.app_name}-fastapi-no-tasks"
+
   alarm_description = "FastAPI ECS service has no running tasks"
 
   comparison_operator = "LessThanThreshold"
 
   evaluation_periods = 2
-  period             = 60
 
-  namespace   = "ECS/ContainerInsights"
+  period = 60
+
+  namespace = "ECS/ContainerInsights"
+
   metric_name = "RunningTaskCount"
 
   statistic = "Minimum"
 
   threshold = 1
 
+
   dimensions = {
+
     ClusterName = module.ecs.cluster_name
+
     ServiceName = module.ecs.services["fastapi"].name
   }
 
+
   alarm_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 
   ok_actions = [
-    aws_sns_topic.alerts.arn
+    module.sns.topic_arn
   ]
 }
+```
