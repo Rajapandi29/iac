@@ -175,8 +175,7 @@ module "ecr_streamlit" {
         description = "Keep last 10 tagged images"
 
         selection = {
-          tagStatus = "tagged"
-
+          tagStatus  = "tagged"
           countType  = "imageCountMoreThan"
           countNumber = 10
         }
@@ -217,8 +216,7 @@ module "ecr_fastapi" {
         description = "Keep last 10 tagged images"
 
         selection = {
-          tagStatus = "tagged"
-
+          tagStatus  = "tagged"
           countType  = "imageCountMoreThan"
           countNumber = 10
         }
@@ -313,7 +311,11 @@ module "ecs" {
   ]
 
 
-  services = {
+  # IMPORTANT:
+  # The services contain sensitive Neon database values.
+  # nonsensitive() allows the ECS module to use the service
+  # names as for_each keys.
+  services = nonsensitive({
 
     # ========================================================
     # STREAMLIT SERVICE
@@ -632,7 +634,7 @@ module "ecs" {
         }
       }
     }
-  }
+  })
 
 
   tags = {
@@ -847,3 +849,4 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
     module.sns.topic_arn
   ]
 }
+
