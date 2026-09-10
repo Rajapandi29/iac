@@ -1,3 +1,4 @@
+```hcl
 module "vpc" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//vpc?ref=v1.0.0"
 
@@ -144,9 +145,10 @@ module "ecr_streamlit" {
         description  = "Keep last 10 tagged images"
 
         selection = {
-          tagStatus  = "tagged"
-          countType  = "imageCountMoreThan"
-          countNumber = 10
+          tagStatus       = "tagged"
+          tagPatternList  = ["*"]
+          countType       = "imageCountMoreThan"
+          countNumber     = 10
         }
 
         action = {
@@ -178,9 +180,10 @@ module "ecr_fastapi" {
         description  = "Keep last 10 tagged images"
 
         selection = {
-          tagStatus  = "tagged"
-          countType  = "imageCountMoreThan"
-          countNumber = 10
+          tagStatus       = "tagged"
+          tagPatternList  = ["*"]
+          countType       = "imageCountMoreThan"
+          countNumber     = 10
         }
 
         action = {
@@ -334,9 +337,9 @@ module "ecs" {
             }
           ]
 
-          enable_cloudwatch_logging             = true
-          create_cloudwatch_log_group           = false
-          cloudwatch_log_group_name             = "/ecs/${var.app_name}/streamlit"
+          enable_cloudwatch_logging              = true
+          create_cloudwatch_log_group            = false
+          cloudwatch_log_group_name              = "/ecs/${var.app_name}/streamlit"
           cloudwatch_log_group_retention_in_days = 7
         }
       }
@@ -460,9 +463,9 @@ module "ecs" {
             startPeriod = 30
           }
 
-          enable_cloudwatch_logging             = true
-          create_cloudwatch_log_group           = false
-          cloudwatch_log_group_name             = "/ecs/${var.app_name}/fastapi"
+          enable_cloudwatch_logging              = true
+          create_cloudwatch_log_group            = false
+          cloudwatch_log_group_name              = "/ecs/${var.app_name}/fastapi"
           cloudwatch_log_group_retention_in_days = 7
         }
       }
@@ -601,4 +604,4 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
     module.sns.topic_arn
   ]
 }
-
+```
