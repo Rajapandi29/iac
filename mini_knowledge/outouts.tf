@@ -56,13 +56,6 @@ output "fastapi_service" {
 output "ecs_task_execution_role_arn" {
   value = module.ecs.task_exec_iam_role_arn
 }
-output "alb_dns_name" {
-  value = module.alb.dns_name
-}
-
-output "ecs_cluster_name" {
-  value = module.ecs.cluster_name
-}
 
 output "streamlit_ecr_url" {
   value = module.ecr_streamlit.repository_url
