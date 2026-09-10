@@ -1,0 +1,3 @@
+./terraform
+.terraform.locl.hcl
+terraform state
