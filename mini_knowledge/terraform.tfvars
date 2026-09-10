@@ -23,7 +23,6 @@ private_subnets = [
   "10.50.12.0/24"
 ]
 
-=
 
 streamlit_port = 8501
 
