@@ -19,10 +19,6 @@ module "vpc" {
 }
 
 
-# ============================================================
-# ALB
-# ============================================================
-
 module "alb" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//alb?ref=v1.0.0"
 
@@ -98,31 +94,32 @@ module "alb" {
       }
 
       rules = {
-        fastapi = {
-          priority = 10
+  fastapi = {
+    priority = 10
 
-          actions = [
-            {
-              type = "forward"
+    actions = [
+      {
+        type = "forward"
 
-              forward = {
-                target_group_key = "fastapi"
-              }
-            }
-          ]
-
-          conditions = {
-            path_pattern = {
-              values = [
-                "/backend",
-                "/backend/*"
-              ]
-            }
-          }
+        forward = {
+          target_group_key = "fastapi"
         }
       }
-    }
-  }
+    ]
+
+    conditions = [
+      {
+        path_pattern = {
+          values = [
+            "/backend",
+            "/backend/*"
+          ]
+        }
+      }
+    ]
+  } } }
+}
+  
 
   tags = {
     Project     = var.app_name
@@ -130,11 +127,6 @@ module "alb" {
     ManagedBy   = "Terraform"
   }
 }
-
-
-# ============================================================
-# ECR - STREAMLIT
-# ============================================================
 
 module "ecr_streamlit" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
@@ -174,10 +166,6 @@ module "ecr_streamlit" {
 }
 
 
-# ============================================================
-# ECR - FASTAPI
-# ============================================================
-
 module "ecr_fastapi" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
 
@@ -216,9 +204,6 @@ module "ecr_fastapi" {
 }
 
 
-# ============================================================
-# CLOUDWATCH LOG GROUP - STREAMLIT
-# ============================================================
 
 resource "aws_cloudwatch_log_group" "streamlit" {
   name              = "/ecs/${var.app_name}/streamlit"
@@ -232,10 +217,6 @@ resource "aws_cloudwatch_log_group" "streamlit" {
 }
 
 
-# ============================================================
-# CLOUDWATCH LOG GROUP - FASTAPI
-# ============================================================
-
 resource "aws_cloudwatch_log_group" "fastapi" {
   name              = "/ecs/${var.app_name}/fastapi"
   retention_in_days = 7
@@ -247,10 +228,6 @@ resource "aws_cloudwatch_log_group" "fastapi" {
   }
 }
 
-
-# ============================================================
-# ECS
-# ============================================================
 
 module "ecs" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecs?ref=v1.0.0"
@@ -268,9 +245,6 @@ module "ecs" {
 
   services = {
 
-    # ========================================================
-    # STREAMLIT SERVICE
-    # ========================================================
 
     streamlit = {
       name = "${var.app_name}-streamlit"
@@ -367,10 +341,6 @@ module "ecs" {
       }
     }
 
-
-    # ========================================================
-    # FASTAPI SERVICE
-    # ========================================================
 
     fastapi = {
       name = "${var.app_name}-fastapi"
@@ -506,10 +476,6 @@ module "ecs" {
 }
 
 
-# ============================================================
-# SNS
-# ============================================================
-
 module "sns" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//sns?ref=v1.0.0"
 
@@ -530,9 +496,6 @@ module "sns" {
 }
 
 
-# ============================================================
-# CLOUDWATCH ALARM - STREAMLIT ALB
-# ============================================================
 
 resource "aws_cloudwatch_metric_alarm" "streamlit_unhealthy" {
   alarm_name        = "${var.app_name}-streamlit-unhealthy"
@@ -561,9 +524,6 @@ resource "aws_cloudwatch_metric_alarm" "streamlit_unhealthy" {
 }
 
 
-# ============================================================
-# CLOUDWATCH ALARM - FASTAPI ALB
-# ============================================================
 
 resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
   alarm_name        = "${var.app_name}-fastapi-unhealthy"
@@ -592,10 +552,6 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
 }
 
 
-# ============================================================
-# CLOUDWATCH ALARM - STREAMLIT ECS
-# ============================================================
-
 resource "aws_cloudwatch_metric_alarm" "streamlit_running_tasks" {
   alarm_name        = "${var.app_name}-streamlit-no-running-tasks"
   alarm_description = "Streamlit ECS service has no running tasks"
@@ -621,11 +577,6 @@ resource "aws_cloudwatch_metric_alarm" "streamlit_running_tasks" {
 
   treat_missing_data = "breaching"
 }
-
-
-# ============================================================
-# CLOUDWATCH ALARM - FASTAPI ECS
-# ============================================================
 
 resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
   alarm_name        = "${var.app_name}-fastapi-no-running-tasks"
