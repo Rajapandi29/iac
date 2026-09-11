@@ -362,8 +362,8 @@ module "ecs" {
 
       # Previous FastAPI task was killed with:
       # Exit code 137 / OutOfMemoryError.
-      cpu    = 1024
-      memory = 2048
+      cpu    = 2048
+      memory = 4096
 
       desired_count = 1
 
@@ -409,8 +409,8 @@ module "ecs" {
 
           image = "${module.ecr_fastapi.repository_url}:${var.fastapi_image_tag}"
 
-          cpu    = 1024
-          memory = 2048
+          cpu    = 2048
+          memory = 4096
 
           readonlyRootFilesystem = false
 
