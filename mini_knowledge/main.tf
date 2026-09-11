@@ -51,7 +51,7 @@ protocol    = "HTTP"
 port        = var.streamlit_port
 target_type = "ip"
 
-```
+
   create_attachment = false
 
   health_check = {
@@ -85,7 +85,6 @@ fastapi = {
     unhealthy_threshold = 3
   }
 }
-```
 
 }
 
@@ -94,7 +93,6 @@ http = {
 port     = 80
 protocol = "HTTP"
 
-```
   forward = {
     target_group_key = "streamlit"
   }
@@ -124,7 +122,7 @@ protocol = "HTTP"
     }
   }
 }
-```
+
 
 }
 
@@ -149,7 +147,7 @@ rules = [
 rulePriority = 1
 description  = "Keep last 10 tagged images"
 
-```
+
     selection = {
       tagStatus      = "tagged"
       tagPatternList = ["*"]
@@ -162,7 +160,7 @@ description  = "Keep last 10 tagged images"
     }
   }
 ]
-```
+
 
 })
 
@@ -187,7 +185,7 @@ rules = [
 rulePriority = 1
 description  = "Keep last 10 tagged images"
 
-```
+
     selection = {
       tagStatus      = "tagged"
       tagPatternList = ["*"]
@@ -200,7 +198,7 @@ description  = "Keep last 10 tagged images"
     }
   }
 ]
-```
+
 
 })
 
@@ -270,7 +268,7 @@ services = nonsensitive({
 streamlit = {
 name = "${var.app_name}-streamlit"
 
-```
+
   cpu    = 256
   memory = 512
 
@@ -496,7 +494,6 @@ fastapi = {
     }
   }
 }
-```
 
 })
 
@@ -518,12 +515,12 @@ protocol = "email"
 endpoint = var.alert_email
 }
 
-```
+
 sms = {
   protocol = "sms"
   endpoint = var.alert_phone
 }
-```
+
 
 }
 }
