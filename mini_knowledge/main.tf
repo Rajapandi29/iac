@@ -160,6 +160,7 @@ module "ecr_streamlit" {
 
         selection = {
           tagStatus   = "tagged"
+          tagPatternList = ["*"]
           countType   = "imageCountMoreThan"
           countNumber = 10
         }
@@ -198,6 +199,7 @@ module "ecr_fastapi" {
 
         selection = {
           tagStatus   = "tagged"
+          tagPatternList = ["*"]
           countType   = "imageCountMoreThan"
           countNumber = 10
         }
