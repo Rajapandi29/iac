@@ -1,3 +1,4 @@
+```hcl
 module "vpc" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//vpc?ref=v1.0.0"
 
@@ -125,11 +126,15 @@ module "alb" {
 module "ecr_streamlit" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
 
-  name                 = "${var.app_name}-streamlit"
-  image_tag_mutability = "IMMUTABLE"
-  scan_on_push         = true
+  create = true
 
-  lifecycle_policy = jsonencode({
+  repository_name                 = "${var.app_name}-streamlit"
+  repository_image_tag_mutability = "IMMUTABLE"
+  repository_image_scan_on_push   = true
+
+  create_lifecycle_policy = true
+
+  repository_lifecycle_policy = jsonencode({
     rules = [
       {
         rulePriority = 1
@@ -158,11 +163,15 @@ module "ecr_streamlit" {
 module "ecr_fastapi" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
 
-  name                 = "${var.app_name}-fastapi"
-  image_tag_mutability = "IMMUTABLE"
-  scan_on_push         = true
+  create = true
 
-  lifecycle_policy = jsonencode({
+  repository_name                 = "${var.app_name}-fastapi"
+  repository_image_tag_mutability = "IMMUTABLE"
+  repository_image_scan_on_push   = true
+
+  create_lifecycle_policy = true
+
+  repository_lifecycle_policy = jsonencode({
     rules = [
       {
         rulePriority = 1
@@ -302,9 +311,9 @@ module "ecs" {
             }
           ]
 
-          enable_cloudwatch_logging            = true
-          create_cloudwatch_log_group          = false
-          cloudwatch_log_group_name            = "/ecs/${var.app_name}/streamlit"
+          enable_cloudwatch_logging              = true
+          create_cloudwatch_log_group            = false
+          cloudwatch_log_group_name              = "/ecs/${var.app_name}/streamlit"
           cloudwatch_log_group_retention_in_days = 7
         }
       }
@@ -461,7 +470,6 @@ module "sns" {
         endpoint = var.alert_email
       }
     ] : [],
-
     var.alert_phone != "" ? [
       {
         protocol = "sms"
@@ -574,3 +582,4 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
 
   treat_missing_data = "breaching"
 }
+```
