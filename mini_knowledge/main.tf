@@ -223,7 +223,7 @@ module "ecs" {
 
   cluster_name = "${var.app_name}-cluster"
 
-  cluster_settings = {
+  cluster_setting = {
     name  = "containerInsights"
     value = "enabled"
   }
