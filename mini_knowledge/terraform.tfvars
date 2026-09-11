@@ -38,8 +38,7 @@ fastapi_image_tag = "v1"
 
 neon_api_key = "napi_0qvdpwqyefes6x3zzfmqyr7h16rgvd1q3g7gxg69i7lqlkx1u28yh0t7um6m0ov4"
 
-neon_database_url = "postgresql://USER:PASSWORD@YOUR-NEON-HOST/neondb?sslmode=require"
-
+neon_database_url = "postgresql://REAL_USER:REAL_PASSWORD@REAL_NEON_HOST/neondb?sslmode=require"
 neon_database_name = "neondb"
 
 neon_database_user = "jagan"
