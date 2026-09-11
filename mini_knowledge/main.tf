@@ -18,6 +18,11 @@ module "vpc" {
   }
 }
 
+
+# ============================================================
+# ALB
+# ============================================================
+
 module "alb" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//alb?ref=v1.0.0"
 
@@ -96,11 +101,15 @@ module "alb" {
         fastapi = {
           priority = 10
 
-          actions = {
-            forward = {
-              target_group_key = "fastapi"
+          actions = [
+            {
+              type = "forward"
+
+              forward = {
+                target_group_key = "fastapi"
+              }
             }
-          }
+          ]
 
           conditions = {
             path_pattern = {
@@ -121,6 +130,11 @@ module "alb" {
     ManagedBy   = "Terraform"
   }
 }
+
+
+# ============================================================
+# ECR - STREAMLIT
+# ============================================================
 
 module "ecr_streamlit" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
@@ -159,6 +173,11 @@ module "ecr_streamlit" {
   }
 }
 
+
+# ============================================================
+# ECR - FASTAPI
+# ============================================================
+
 module "ecr_fastapi" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
 
@@ -196,6 +215,11 @@ module "ecr_fastapi" {
   }
 }
 
+
+# ============================================================
+# CLOUDWATCH LOG GROUP - STREAMLIT
+# ============================================================
+
 resource "aws_cloudwatch_log_group" "streamlit" {
   name              = "/ecs/${var.app_name}/streamlit"
   retention_in_days = 7
@@ -206,6 +230,11 @@ resource "aws_cloudwatch_log_group" "streamlit" {
     ManagedBy   = "Terraform"
   }
 }
+
+
+# ============================================================
+# CLOUDWATCH LOG GROUP - FASTAPI
+# ============================================================
 
 resource "aws_cloudwatch_log_group" "fastapi" {
   name              = "/ecs/${var.app_name}/fastapi"
@@ -218,19 +247,31 @@ resource "aws_cloudwatch_log_group" "fastapi" {
   }
 }
 
+
+# ============================================================
+# ECS
+# ============================================================
+
 module "ecs" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecs?ref=v1.0.0"
 
   cluster_name = "${var.app_name}-cluster"
 
-  cluster_setting = {
-    name  = "containerInsights"
-    value = "enabled"
-  }
+  cluster_setting = [
+    {
+      name  = "containerInsights"
+      value = "enabled"
+    }
+  ]
 
   task_exec_iam_role_name = "${var.app_name}-execution-role"
 
   services = {
+
+    # ========================================================
+    # STREAMLIT SERVICE
+    # ========================================================
+
     streamlit = {
       name = "${var.app_name}-streamlit"
 
@@ -326,9 +367,16 @@ module "ecs" {
       }
     }
 
+
+    # ========================================================
+    # FASTAPI SERVICE
+    # ========================================================
+
     fastapi = {
       name = "${var.app_name}-fastapi"
 
+      # Increased because previous FastAPI task
+      # was killed with exit code 137 / OutOfMemoryError.
       cpu    = 1024
       memory = 2048
 
@@ -457,25 +505,22 @@ module "ecs" {
   ]
 }
 
+
+# ============================================================
+# SNS
+# ============================================================
+
 module "sns" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//sns?ref=v1.0.0"
 
   name = "${var.app_name}-alerts"
 
-  subscriptions = concat(
-    var.alert_email != "" ? [
-      {
-        protocol = "email"
-        endpoint = var.alert_email
-      }
-    ] : [],
-    var.alert_phone != "" ? [
-      {
-        protocol = "sms"
-        endpoint = var.alert_phone
-      }
-    ] : []
-  )
+  subscriptions = var.alert_email != "" ? {
+    email = {
+      protocol = "email"
+      endpoint = var.alert_email
+    }
+  } : {}
 
   tags = {
     Project     = var.app_name
@@ -484,14 +529,22 @@ module "sns" {
   }
 }
 
+
+# ============================================================
+# CLOUDWATCH ALARM - STREAMLIT ALB
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "streamlit_unhealthy" {
-  alarm_name          = "${var.app_name}-streamlit-unhealthy"
-  alarm_description   = "Streamlit ALB target is unhealthy"
-  namespace           = "AWS/ApplicationELB"
-  metric_name         = "UnHealthyHostCount"
-  statistic           = "Maximum"
-  period              = 60
-  evaluation_periods  = 2
+  alarm_name        = "${var.app_name}-streamlit-unhealthy"
+  alarm_description = "Streamlit ALB target is unhealthy"
+
+  namespace   = "AWS/ApplicationELB"
+  metric_name = "UnHealthyHostCount"
+
+  statistic          = "Maximum"
+  period             = 60
+  evaluation_periods = 2
+
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
 
@@ -507,14 +560,22 @@ resource "aws_cloudwatch_metric_alarm" "streamlit_unhealthy" {
   treat_missing_data = "breaching"
 }
 
+
+# ============================================================
+# CLOUDWATCH ALARM - FASTAPI ALB
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
-  alarm_name          = "${var.app_name}-fastapi-unhealthy"
-  alarm_description   = "FastAPI ALB target is unhealthy"
-  namespace           = "AWS/ApplicationELB"
-  metric_name         = "UnHealthyHostCount"
-  statistic           = "Maximum"
-  period              = 60
-  evaluation_periods  = 2
+  alarm_name        = "${var.app_name}-fastapi-unhealthy"
+  alarm_description = "FastAPI ALB target is unhealthy"
+
+  namespace   = "AWS/ApplicationELB"
+  metric_name = "UnHealthyHostCount"
+
+  statistic          = "Maximum"
+  period             = 60
+  evaluation_periods = 2
+
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
 
@@ -530,9 +591,14 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
   treat_missing_data = "breaching"
 }
 
+
+# ============================================================
+# CLOUDWATCH ALARM - STREAMLIT ECS
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "streamlit_running_tasks" {
-  alarm_name          = "${var.app_name}-streamlit-no-running-tasks"
-  alarm_description   = "Streamlit ECS service has no running tasks"
+  alarm_name        = "${var.app_name}-streamlit-no-running-tasks"
+  alarm_description = "Streamlit ECS service has no running tasks"
 
   namespace   = "ECS/ContainerInsights"
   metric_name = "RunningTaskCount"
@@ -556,9 +622,14 @@ resource "aws_cloudwatch_metric_alarm" "streamlit_running_tasks" {
   treat_missing_data = "breaching"
 }
 
+
+# ============================================================
+# CLOUDWATCH ALARM - FASTAPI ECS
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
-  alarm_name          = "${var.app_name}-fastapi-no-running-tasks"
-  alarm_description   = "FastAPI ECS service has no running tasks"
+  alarm_name        = "${var.app_name}-fastapi-no-running-tasks"
+  alarm_description = "FastAPI ECS service has no running tasks"
 
   namespace   = "ECS/ContainerInsights"
   metric_name = "RunningTaskCount"
@@ -581,4 +652,3 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_running_tasks" {
 
   treat_missing_data = "breaching"
 }
-
