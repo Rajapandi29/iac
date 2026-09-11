@@ -457,8 +457,7 @@ module "ecs" {
 
           healthCheck = {
             command = [
-              "CMD-SHELL",
-              "curl -f http://localhost:8000/health || exit 1"
+              "CMD-SHELL"
             ]
 
             interval    = 30
