@@ -19,6 +19,10 @@ module "vpc" {
 }
 
 
+# ============================================================
+# ALB
+# ============================================================
+
 module "alb" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//alb?ref=v1.0.0"
 
@@ -46,16 +50,14 @@ module "alb" {
     }
   }
 
-
   target_groups = {
+
     streamlit = {
       name        = "${var.app_name}-streamlit-tg"
       port        = var.streamlit_port
       protocol    = "HTTP"
       target_type = "ip"
 
-      # ECS Fargate automatically registers task IPs.
-      # Do not create a static Terraform target attachment.
       create_attachment = false
 
       health_check = {
@@ -63,8 +65,8 @@ module "alb" {
         path                = "/"
         protocol            = "HTTP"
         matcher             = "200-399"
-        interval            = 30
-        timeout             = 10
+        interval             = 30
+        timeout              = 10
         healthy_threshold   = 2
         unhealthy_threshold = 3
       }
@@ -76,8 +78,6 @@ module "alb" {
       protocol    = "HTTP"
       target_type = "ip"
 
-      # ECS Fargate automatically registers task IPs.
-      # Do not create a static Terraform target attachment.
       create_attachment = false
 
       health_check = {
@@ -85,26 +85,25 @@ module "alb" {
         path                = "/health"
         protocol            = "HTTP"
         matcher             = "200-399"
-        interval            = 30
-        timeout             = 10
+        interval             = 30
+        timeout              = 10
         healthy_threshold   = 2
         unhealthy_threshold = 3
       }
     }
   }
 
-
   listeners = {
     http = {
       port     = 80
       protocol = "HTTP"
 
-      # Default traffic goes to Streamlit.
+      # Default = Streamlit
       forward = {
         target_group_key = "streamlit"
       }
 
-      # /backend and /backend/* go to FastAPI.
+      # /backend/* = FastAPI
       rules = {
         fastapi = {
           priority = 10
@@ -140,15 +139,22 @@ module "alb" {
 }
 
 
+# ============================================================
+# ECR - STREAMLIT
+# ============================================================
 
 module "ecr_streamlit" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
 
   create = true
 
-  repository_name                 = "${var.app_name}-streamlit"
-  repository_image_tag_mutability = "IMMUTABLE"
-  repository_image_scan_on_push   = true
+  repository_name = "${var.app_name}-streamlit"
+
+  # IMPORTANT:
+  # GitHub Actions pushes :latest repeatedly.
+  repository_image_tag_mutability = "MUTABLE"
+
+  repository_image_scan_on_push = true
 
   create_lifecycle_policy = true
 
@@ -159,10 +165,10 @@ module "ecr_streamlit" {
         description  = "Keep latest 10 tagged images"
 
         selection = {
-          tagStatus   = "tagged"
+          tagStatus      = "tagged"
           tagPatternList = ["*"]
-          countType   = "imageCountMoreThan"
-          countNumber = 10
+          countType      = "imageCountMoreThan"
+          countNumber    = 10
         }
 
         action = {
@@ -179,15 +185,23 @@ module "ecr_streamlit" {
   }
 }
 
+
+# ============================================================
+# ECR - FASTAPI
+# ============================================================
 
 module "ecr_fastapi" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecr?ref=v1.0.0"
 
   create = true
 
-  repository_name                 = "${var.app_name}-fastapi"
-  repository_image_tag_mutability = "IMMUTABLE"
-  repository_image_scan_on_push   = true
+  repository_name = "${var.app_name}-fastapi"
+
+  # IMPORTANT:
+  # GitHub Actions pushes :latest repeatedly.
+  repository_image_tag_mutability = "MUTABLE"
+
+  repository_image_scan_on_push = true
 
   create_lifecycle_policy = true
 
@@ -198,10 +212,10 @@ module "ecr_fastapi" {
         description  = "Keep latest 10 tagged images"
 
         selection = {
-          tagStatus   = "tagged"
+          tagStatus      = "tagged"
           tagPatternList = ["*"]
-          countType   = "imageCountMoreThan"
-          countNumber = 10
+          countType      = "imageCountMoreThan"
+          countNumber    = 10
         }
 
         action = {
@@ -218,6 +232,40 @@ module "ecr_fastapi" {
   }
 }
 
+
+# ============================================================
+# SECRETS MANAGER
+# ============================================================
+
+resource "aws_secretsmanager_secret" "fastapi_database" {
+  name        = "${var.app_name}/fastapi/database"
+  description = "Database credentials for RAG FastAPI application"
+
+  recovery_window_in_days = 7
+
+  tags = {
+    Project     = var.app_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+
+resource "aws_secretsmanager_secret_version" "fastapi_database" {
+  secret_id = aws_secretsmanager_secret.fastapi_database.id
+
+  secret_string = jsonencode({
+    DATABASE_URL      = var.neon_database_url
+    POSTGRES_DB       = var.neon_database_name
+    POSTGRES_USER     = var.neon_database_user
+    POSTGRES_PASSWORD = var.neon_database_password
+  })
+}
+
+
+# ============================================================
+# CLOUDWATCH LOG GROUPS
+# ============================================================
 
 resource "aws_cloudwatch_log_group" "streamlit" {
   name              = "/ecs/${var.app_name}/streamlit"
@@ -231,7 +279,6 @@ resource "aws_cloudwatch_log_group" "streamlit" {
 }
 
 
-
 resource "aws_cloudwatch_log_group" "fastapi" {
   name              = "/ecs/${var.app_name}/fastapi"
   retention_in_days = 7
@@ -243,6 +290,10 @@ resource "aws_cloudwatch_log_group" "fastapi" {
   }
 }
 
+
+# ============================================================
+# ECS
+# ============================================================
 
 module "ecs" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//ecs?ref=v1.0.0"
@@ -258,8 +309,12 @@ module "ecs" {
 
   task_exec_iam_role_name = "${var.app_name}-execution-role"
 
+
   services = {
 
+    # ========================================================
+    # STREAMLIT SERVICE
+    # ========================================================
 
     streamlit = {
       name = "${var.app_name}-streamlit"
@@ -305,6 +360,7 @@ module "ecs" {
       requires_compatibilities = ["FARGATE"]
 
       container_definitions = {
+
         streamlit = {
           name      = "streamlit"
           essential = true
@@ -357,11 +413,14 @@ module "ecs" {
     }
 
 
+    # ========================================================
+    # FASTAPI SERVICE
+    # ========================================================
+
     fastapi = {
       name = "${var.app_name}-fastapi"
 
-      # Previous FastAPI task was killed with:
-      # Exit code 137 / OutOfMemoryError.
+      # Docling needs more memory/CPU.
       cpu    = 4096
       memory = 8192
 
@@ -402,7 +461,18 @@ module "ecs" {
       network_mode             = "awsvpc"
       requires_compatibilities = ["FARGATE"]
 
+
+      # ------------------------------------------------------
+      # Give ECS execution role permission to read secret
+      # ------------------------------------------------------
+
+      task_exec_secret_arns = [
+        aws_secretsmanager_secret.fastapi_database.arn
+      ]
+
+
       container_definitions = {
+
         fastapi = {
           name      = "fastapi"
           essential = true
@@ -432,32 +502,55 @@ module "ecs" {
             "8000"
           ]
 
+
+          # --------------------------------------------------
+          # Secrets Manager
+          # --------------------------------------------------
+
+          secrets = [
+            {
+              name = "DATABASE_URL"
+
+              valueFrom = "${aws_secretsmanager_secret.fastapi_database.arn}:DATABASE_URL::"
+            },
+            {
+              name = "POSTGRES_DB"
+
+              valueFrom = "${aws_secretsmanager_secret.fastapi_database.arn}:POSTGRES_DB::"
+            },
+            {
+              name = "POSTGRES_USER"
+
+              valueFrom = "${aws_secretsmanager_secret.fastapi_database.arn}:POSTGRES_USER::"
+            },
+            {
+              name = "POSTGRES_PASSWORD"
+
+              valueFrom = "${aws_secretsmanager_secret.fastapi_database.arn}:POSTGRES_PASSWORD::"
+            }
+          ]
+
+
+          # --------------------------------------------------
+          # Port
+          # --------------------------------------------------
+
           environment = [
-            {
-              name  = "DATABASE_URL"
-              value = nonsensitive(var.neon_database_url)
-            },
-            {
-              name  = "POSTGRES_DB"
-              value = nonsensitive(var.neon_database_name)
-            },
-            {
-              name  = "POSTGRES_USER"
-              value = nonsensitive(var.neon_database_user)
-            },
-            {
-              name  = "POSTGRES_PASSWORD"
-              value = nonsensitive(var.neon_database_password)
-            },
             {
               name  = "PORT"
               value = "8000"
             }
           ]
 
+
+          # --------------------------------------------------
+          # ECS Container Health Check
+          # --------------------------------------------------
+
           healthCheck = {
             command = [
-              "CMD-SHELL"
+              "CMD-SHELL",
+              "curl -f http://localhost:8000/health || exit 1"
             ]
 
             interval    = 30
@@ -466,12 +559,18 @@ module "ecs" {
             startPeriod = 30
           }
 
+
+          # --------------------------------------------------
+          # CloudWatch Logs
+          # --------------------------------------------------
+
           enable_cloudwatch_logging              = true
           create_cloudwatch_log_group            = false
           cloudwatch_log_group_name              = "/ecs/${var.app_name}/fastapi"
           cloudwatch_log_group_retention_in_days = 7
         }
       }
+
 
       load_balancer = {
         fastapi = {
@@ -485,9 +584,15 @@ module "ecs" {
 
   depends_on = [
     aws_cloudwatch_log_group.streamlit,
-    aws_cloudwatch_log_group.fastapi
+    aws_cloudwatch_log_group.fastapi,
+    aws_secretsmanager_secret_version.fastapi_database
   ]
 }
+
+
+# ============================================================
+# SNS
+# ============================================================
 
 module "sns" {
   source = "git::https://github.com/Rajapandi29/terraform-modules.git//sns?ref=v1.0.0"
@@ -508,6 +613,10 @@ module "sns" {
   }
 }
 
+
+# ============================================================
+# ALB HEALTH ALARMS
+# ============================================================
 
 resource "aws_cloudwatch_metric_alarm" "streamlit_unhealthy" {
   alarm_name        = "${var.app_name}-streamlit-unhealthy"
@@ -534,7 +643,6 @@ resource "aws_cloudwatch_metric_alarm" "streamlit_unhealthy" {
 
   treat_missing_data = "breaching"
 }
-
 
 
 resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
@@ -564,6 +672,9 @@ resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
 }
 
 
+# ============================================================
+# ECS RUNNING TASK ALARMS
+# ============================================================
 
 resource "aws_cloudwatch_metric_alarm" "streamlit_running_tasks" {
   alarm_name        = "${var.app_name}-streamlit-no-running-tasks"
