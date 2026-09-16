@@ -40,7 +40,7 @@ jobs:
             run-id: ${{ github.event.workflow_run.id}}
 
       - name: Move Terraform Plan
-        run: cp downloaded-plan/tfplan terraform/tfplan
+        run: cp /home/runner/work/_temp/617c7a40-9c68-4f7e-b5a8-c2dd4a548d7b terraform/tfplan
 
       - name: Terraform Init
         working-directory: "terraform"
