@@ -39,7 +39,7 @@ jobs:
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v6
         with:
-          name: terraform-plan
+          name: terraform plan
           path: terraform/tfplan
 
   mini_plan:
