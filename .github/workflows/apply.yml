@@ -39,6 +39,9 @@ jobs:
             github-token: ${{ secrets.GITHUB_TOKEN}}
             run-id: ${{ github.event.workflow_run.id}}
 
+      - name: Move Terraform Plan
+        run: cp downloaded-plan/tfplan terraform/tfplan
+
       - name: Terraform Init
         working-directory: "terraform"
         run: terraform init
