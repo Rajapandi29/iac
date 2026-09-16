@@ -31,6 +31,14 @@ jobs:
         with:
           terraform_version: 1.14.0
 
+      - name: Download Terraform Plan
+        uses: actions/artifact@v4
+        with:
+            name: terraform plan
+            path: terraform
+            github-token: ${{ secrets.GITHUB_TOKEN}}
+            run-id: ${{ github.event.workflow_run.id}}
+
       - name: Terraform Init
         working-directory: "terraform"
         run: terraform init
