@@ -34,7 +34,13 @@ jobs:
 
       - name: Terraform Plan
         working-directory: "terraform"
-        run: terraform plan
+        run: terraform plan -out=plan
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artfact@v2
+        with:
+          name: terraform-plan
+          path: tfplan
 
   mini_plan:
     runs-on: ubuntu-latest
