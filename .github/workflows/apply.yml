@@ -13,7 +13,7 @@ env:
 
 jobs:
   apply:
-    if: {{github.event.workflow_run.conclution == 'success'}}
+    if: ${{github.event.workflow_run.conclution == 'success'}}
     runs-on: ubuntu-latest  
     steps:
       - name: Checkout repository
