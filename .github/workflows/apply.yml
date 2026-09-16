@@ -35,7 +35,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
             name: terraform plan
-            path: terraform
+            path: terraform/tfplan
             github-token: ${{ secrets.GITHUB_TOKEN}}
             run-id: ${{ github.event.workflow_run.id}}
 
