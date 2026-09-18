@@ -82,3 +82,7 @@ jobs:
       - name: Terraform Apply
         working-directory: "mini_knowledge"
         run: terraform apply -auto-approve
+
+      - name: Terraform Destroy
+        working-directory: "mini_knowledge"
+        run: terraform destroy -auto-approve
